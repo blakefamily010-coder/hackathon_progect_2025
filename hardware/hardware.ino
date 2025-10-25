@@ -1,8 +1,8 @@
 #include "BluetoothSerial.h"
 
-const int buzzer = 8;
-const int trig_pin = 9;
-const int echo_pin = 10;
+const int buzzer = 2;
+const int trig_pin = 0;
+const int echo_pin = 4;
 
 BluetoothSerial SerialBT;
 
