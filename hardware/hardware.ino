@@ -162,6 +162,8 @@ void loop() {
         uint8_t v = pSettingsCharacteristic->getValue()[0];
         if ((v & 0x80) == 0x80) {
             digitalWrite(buzzer, HIGH);
+        } else {
+            digitalWrite(buzzer, LOW);
         }
         delay(2);
         return;
