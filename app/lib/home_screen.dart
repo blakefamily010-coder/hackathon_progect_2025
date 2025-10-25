@@ -1,11 +1,8 @@
-// lib/home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'ble_service.dart';
-import 'package:vibration/vibration.dart';
 import 'dart:async';
-// ADDED for device type in the list tile
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,57 +17,21 @@ class _HomeScreenState extends State<HomeScreen> {
   int cautionCm = 120;
   int dangerCm = 50;
 
+  bool _buzzerActive = false;
+
   @override
   void dispose() {
     _hapticTimer?.cancel();
     super.dispose();
   }
 
-  void _maybeTriggerHaptics(BleService b) async {
-    _hapticTimer?.cancel();
-
-    final left = b.leftCm;
-    final center = b.centerCm;
-    final right = b.rightCm;
-
-    // The ESP32 only sends a single sensor's data (centerCm), so we only check 'center'
-    // We can comment out the full check if it's only a single sensor project
-    // if (left == null || center == null || right == null) return;
-    if (center == null) return; // Only check the sensor that is actually sending data
-    
-    // For single sensor, we only check the center distance
-    bool danger = (center <= dangerCm);
-    bool caution = (center <= cautionCm);
-
-    if (danger) {
-      _hapticTimer = Timer.periodic(const Duration(milliseconds: 400), (_) async {
-        // Fix: Using ?? false to safely handle nullable result from Future<bool?>
-        if (await Vibration.hasVibrator() ?? false) Vibration.vibrate(duration: 250);
-      });
-    } else if (caution) {
-      _hapticTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-        // Fix: Using ?? false to safely handle nullable result from Future<bool?>
-        if (await Vibration.hasCustomVibrationsSupport() ?? false) {
-          Vibration.vibrate(pattern: <int>[0, 100, 150, 100]);
-        } else {
-          Vibration.vibrate(duration: 80);
-        }
-      });
-    } else {
-      _hapticTimer?.cancel();
-      _hapticTimer = null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<BleService>(
       builder: (context, b, _) {
-        _maybeTriggerHaptics(b);
-
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Smart Cane'),
+            title: const Text('Magic White Cane'),
             actions: [
               IconButton(
                 onPressed: () => _showSettingsDialog(context, b),
@@ -83,8 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               _connectionRow(b),
               const Divider(),
-              // ⚠️ NEW: Changed to _pairedDeviceList for BT Classic
-              _pairedDeviceList(b),
+              _scanList(b),
               const Divider(),
               Expanded(child: _readouts(b)),
               const SizedBox(height: 12),
@@ -96,70 +56,90 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _connectionRow(BleService b) {
+    final deviceName = b.isConnected
+        ? b.connectedDevice!.platformName ?? b.connectedDevice!.remoteId.str
+        : "Not connected";
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            b.isConnected
-                // ⚠️ FIX: Use the connectedDevice property from BleService
-                ? "${b.connectedDevice?.name ?? b.connectedDevice?.address ?? 'Device'} connected"
-                : "Not connected",
+            b.isConnected ? "$deviceName connected" : "Not connected",
             style: const TextStyle(fontSize: 16),
           ),
-          const Spacer(),
-          ElevatedButton(
-            onPressed: b.isConnected
-                ? () => b.disconnect()
-                // ⚠️ FIX: Call auto-connect which also performs the check for paired devices
-                : () => b.scanAndAutoConnect(), 
-            child: Text(b.isConnected ? "Disconnect" : "Auto Connect"),
-          ),
-          const SizedBox(width: 8),
-          // ⚠️ FIX: Removed the 'Scan' button as the auto-connect function 
-          // now handles listing paired devices, which is the standard BT Classic approach.
-          // You could replace this with a button to simply load bonded devices if needed.
-          ElevatedButton(
-            // Since BT Classic primarily uses BONDED devices, a simple 'Refresh' of the list is often enough.
-            onPressed: () => b.scanAndAutoConnect(), 
-            child: const Text("Load Paired"),
+          // Scrollable button row to prevent overflow
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  children: [
+                    if (!b.isConnected)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: ElevatedButton(
+                          onPressed: () => b.hardcodeConnect(),
+                          child: const Text("Hardcode Connect"),
+                        ),
+                      ),
+                    ElevatedButton(
+                      onPressed: b.isConnected
+                          ? () => b.disconnect()
+                          : () => b.scanAndAutoConnect(),
+                      child: Text(b.isConnected ? "Disconnect" : "Auto Connect"),
+                    ),
+                    const SizedBox(width: 6),
+                    ElevatedButton(
+                      onPressed: b.scanning ? b.stopScan : () => b.startScan(),
+                      child: Text(b.scanning ? "Stop Scan" : "Scan"),
+                    ),
+                    const SizedBox(width: 6),
+                    if (b.isConnected)
+                      ElevatedButton(
+                        onPressed: () async {
+                          setState(() => _buzzerActive = !_buzzerActive);
+                          await b.sendData(_buzzerActive, dangerCm);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              _buzzerActive ? Colors.red : Colors.blue,
+                        ),
+                        child: Text(
+                          _buzzerActive ? "Stop Beep 🔇" : "Find My Cane 🔔",
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ⚠️ NEW: Widget to display Paired Devices for Bluetooth Classic
-  Widget _pairedDeviceList(BleService b) {
-    // If connected, show nothing in the list.
-    if (b.isConnected) {
-      return const SizedBox(height: 0);
-    }
-    
-    // Show a message if no devices were loaded or found.
-    if (b.pairedDevices.isEmpty) {
-       return const Padding(
+  Widget _scanList(BleService b) {
+    if (b.scanning) {
+      return const Padding(
         padding: EdgeInsets.all(8.0),
-        child: Text('No paired devices found. Ensure the ESP32 is paired via OS settings.'),
+        child: Text('Scanning...'),
       );
     }
-
     return SizedBox(
       height: 120,
       child: ListView.builder(
-        itemCount: b.pairedDevices.length,
+        itemCount: b.scanResults.length,
         itemBuilder: (context, i) {
-          // ⚠️ FIX: Use the BluetoothDevice type directly from the imported library
-          final BluetoothDevice device = b.pairedDevices[i]; 
-          
-          final deviceName = device.name ?? 'Unknown Device';
-
+          final r = b.scanResults[i];
+          final deviceName = r.device.platformName ?? r.device.remoteId.str;
           return ListTile(
             title: Text(deviceName),
-            subtitle: Text(device.address),
+            subtitle: Text("ID: ${r.device.remoteId.str} | RSSI: ${r.rssi}"),
             trailing: ElevatedButton(
-              // ⚠️ FIX: Pass the BluetoothDevice object to connect
-              onPressed: () => b.connect(device), 
+              onPressed: () => b.connect(r.device),
               child: const Text('Connect'),
             ),
           );
@@ -175,9 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _singleReadout("Center", b.centerCm),
-          const SizedBox(height: 12),
-          // The hardware only supports one sensor, so left and right will be null/0.
-          // Keep the UI layout for future expansion.
+          const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -192,35 +170,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _singleReadout(String label, double? cm) {
-    // 1. Calculate the value to display: 
-    //    - If null OR > 250, display 'N/A'.
-    //    - Otherwise, display the value formatted to one decimal place.
-    //    - NOTE: The original code checked for '9999' which I've replaced with 250
-    //            and also added the null check for 'N/A'.
     final displayValue = (cm == null || cm > 250.0)
         ? 'N/A'
-        : cm.toStringAsFixed(1); // Use 1 decimal place as per previous request
+        : cm.toStringAsFixed(1);
 
-    // 2. Determine the color based on the sensor value (optional, but good visual feedback)
     Color circleColor;
     if (cm == null || cm > 250.0) {
-      circleColor = Colors.grey; // Not connected/out of range
+      circleColor = Colors.grey;
     } else if (cm <= dangerCm) {
-      circleColor = Colors.red.shade700; // Danger
+      circleColor = Colors.red.shade700;
     } else if (cm <= cautionCm) {
-      circleColor = Colors.orange.shade700; // Caution
+      circleColor = Colors.orange.shade700;
     } else {
-      circleColor = Colors.green.shade700; // Clear
+      circleColor = Colors.green.shade700;
     }
-    
-    // Define a size for the circular container
-    const double circleSize = 100.0; 
+
+    const double circleSize = 100.0;
 
     return Container(
-      width: circleSize, // Must be equal to height for a circle
+      width: circleSize,
       height: circleSize,
-      
-      // 🎨 Apply the Circle Decoration
       decoration: BoxDecoration(
         color: circleColor,
         shape: BoxShape.circle,
@@ -232,12 +201,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      
-      // Content is centered inside the circle
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // The Label (e.g., "Center")
           Text(
             label,
             style: const TextStyle(
@@ -245,21 +211,15 @@ class _HomeScreenState extends State<HomeScreen> {
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
-            textAlign: TextAlign.center,
           ),
-          
           const SizedBox(height: 4),
-          
-          // The Value (e.g., "150.0 cm" or "N/A")
           Text(
-            // Display the N/A or the formatted value with " cm" added
             displayValue == 'N/A' ? 'N/A' : '$displayValue cm',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -272,43 +232,87 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Settings"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: cautionCtl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Caution cm"),
-            ),
-            TextField(
-              controller: dangerCtl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Danger cm"),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: () {
-              int c = int.tryParse(cautionCtl.text) ?? cautionCm;
-              int d = int.tryParse(dangerCtl.text) ?? dangerCm;
-              
-              setState(() {
-                cautionCm = c;
-                dangerCm = d;
-              });
+      barrierDismissible: false,
+      builder: (_) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          // Track validity
+          bool dangerValid = true;
+          bool cautionValid = true;
 
-              // The call is correct for the updated BleService.writeSettings signature
-              b.writeSettings(c, d); 
-              Navigator.pop(context);
-            },
-            child: const Text("Save"),
-          )
-        ],
-      ),
+          int? dangerVal = int.tryParse(dangerCtl.text);
+          int? cautionVal = int.tryParse(cautionCtl.text);
+
+          if (dangerVal == null || dangerVal < 1 || dangerVal > 127) {
+            dangerValid = false;
+          }
+
+          if (cautionVal == null || dangerVal == null || cautionVal <= dangerVal) {
+            cautionValid = false;
+          }
+
+          bool formValid = dangerValid && cautionValid;
+
+          return AlertDialog(
+            title: const Text("Settings"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: dangerCtl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    labelText: "Danger cm (1–127)",
+                    errorText: dangerValid ? null : "Must be 1–127",
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: dangerValid ? Colors.grey : Colors.red,
+                      ),
+                    ),
+                  ),
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: cautionCtl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    labelText: "Caution cm (> Danger)",
+                    errorText: cautionValid ? null : "Must be > Danger",
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: cautionValid ? Colors.grey : Colors.red,
+                      ),
+                    ),
+                  ),
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: formValid
+                    ? () {
+                        setState(() {
+                          cautionCm = cautionVal!;
+                          dangerCm = dangerVal!;
+                        });
+                        b.writeSettings(cautionCm, dangerCm);
+                        b.sendData(_buzzerActive, dangerCm);
+                        Navigator.pop(context);
+                      }
+                    : null,
+                child: const Text("Save"),
+              ),
+            ],
+          );
+        });
+      },
     );
   }
 }
