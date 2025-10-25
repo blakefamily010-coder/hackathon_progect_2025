@@ -160,7 +160,7 @@ void loop() {
     button_last = button_pressed;
     if (!button_toggle) {
         uint8_t v = pSettingsCharacteristic->getValue()[0];
-        if ((v && 0x80) == 0x80) {
+        if ((v & 0x80) == 0x80) {
             digitalWrite(buzzer, HIGH);
         }
         delay(2);
@@ -190,17 +190,21 @@ void loop() {
     uint8_t v = pSettingsCharacteristic->getValue()[0];
     // uint8_t v = 0x14;
     if (v != 0) {
-        error = v && 0x7f;
+        error = v & 0x7f;
     }
     if ((dist0 <= error) || (dist1 <= error) || (dist2 <= error)) {
         digitalWrite(buzzer, HIGH);
-    } else if ((v && 0x80) == 0x80) {
+        Serial.println("high dist");
+    } else if ((v & 0x80) == 0x80) {
         digitalWrite(buzzer, HIGH);
-    } else if ((v && 0x80) == 0x00) {
+        Serial.println("high");
+    } else if ((v & 0x80) == 0x00) {
         toggle = false;
         digitalWrite(buzzer, LOW);
+        Serial.println("low");
     } else {
         digitalWrite(buzzer, LOW);
+        Serial.println("low");
     }
     // if (SerialBT.available()) {
     //   Serial.write(SerialBT.read());
