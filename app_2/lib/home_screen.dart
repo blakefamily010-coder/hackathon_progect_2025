@@ -95,8 +95,9 @@ class _HomeScreenState extends State<HomeScreen> {
               if (b.isConnected)
                 ElevatedButton(
                   onPressed: () async {
-                    await b.sendData(_buzzerActive, dangerCm);
                     setState(() => _buzzerActive = !_buzzerActive);
+                    await b.sendData(_buzzerActive, dangerCm);
+
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _buzzerActive ? Colors.red : Colors.blue,

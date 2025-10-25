@@ -197,7 +197,7 @@ class BleService extends ChangeNotifier {
       
       distanceChar!.value.listen((data) {
         // 2. 🎯 DIAGNOSTIC: Prints the raw byte array received from the ESP32
-        print('➡️ RECEIVED RAW BYTES: $data, Length: ${data.length}');
+        // print('➡️ RECEIVED RAW BYTES: $data, Length: ${data.length}');
         
         if (data.length >= 3) {
           // Parse the 6-byte packet: [L, P, C, P, R, P]
@@ -206,7 +206,7 @@ class BleService extends ChangeNotifier {
           centerCm = data[1].toDouble(); 
           rightCm = data[2].toDouble();
 
-          print('Parsed Values: Center=${centerCm?.toStringAsFixed(0)}');
+          // print('Parsed Values: Center=${centerCm?.toStringAsFixed(0)}');
 
           notifyListeners();
         } else {
