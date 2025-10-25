@@ -21,7 +21,7 @@ class SmartCaneApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart Cane',
+      title: 'Magic White Cane',
       theme: ThemeData(brightness: Brightness.dark, primarySwatch: Colors.blue),
       home: const HomeScreen(),
     );

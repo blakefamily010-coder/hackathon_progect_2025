@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, b, _) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Smart Cane'),
+            title: const Text('Magic White Cane'),
             actions: [
               IconButton(
                 onPressed: () => _showSettingsDialog(context, b),
@@ -69,43 +69,52 @@ class _HomeScreenState extends State<HomeScreen> {
             b.isConnected ? "$deviceName connected" : "Not connected",
             style: const TextStyle(fontSize: 16),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!b.isConnected)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: ElevatedButton(
-                    onPressed: () => b.hardcodeConnect(),
-                    child: const Text("Hardcode Connect"),
-                  ),
+          // Scrollable button row to prevent overflow
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  children: [
+                    if (!b.isConnected)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: ElevatedButton(
+                          onPressed: () => b.hardcodeConnect(),
+                          child: const Text("Hardcode Connect"),
+                        ),
+                      ),
+                    ElevatedButton(
+                      onPressed: b.isConnected
+                          ? () => b.disconnect()
+                          : () => b.scanAndAutoConnect(),
+                      child: Text(b.isConnected ? "Disconnect" : "Auto Connect"),
+                    ),
+                    const SizedBox(width: 6),
+                    ElevatedButton(
+                      onPressed: b.scanning ? b.stopScan : () => b.startScan(),
+                      child: Text(b.scanning ? "Stop Scan" : "Scan"),
+                    ),
+                    const SizedBox(width: 6),
+                    if (b.isConnected)
+                      ElevatedButton(
+                        onPressed: () async {
+                          setState(() => _buzzerActive = !_buzzerActive);
+                          await b.sendData(_buzzerActive, dangerCm);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              _buzzerActive ? Colors.red : Colors.blue,
+                        ),
+                        child: Text(
+                          _buzzerActive ? "Stop Beep 🔇" : "Find My Cane 🔔",
+                        ),
+                      ),
+                  ],
                 ),
-              ElevatedButton(
-                onPressed: b.isConnected
-                    ? () => b.disconnect()
-                    : () => b.scanAndAutoConnect(),
-                child: Text(b.isConnected ? "Disconnect" : "Auto Connect"),
               ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: b.scanning ? b.stopScan : () => b.startScan(),
-                child: Text(b.scanning ? "Stop Scan" : "Scan"),
-              ),
-              const SizedBox(width: 8),
-              if (b.isConnected)
-                ElevatedButton(
-                  onPressed: () async {
-                    setState(() => _buzzerActive = !_buzzerActive);
-                    await b.sendData(_buzzerActive, dangerCm);
-
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _buzzerActive ? Colors.red : Colors.blue,
-                  ),
-                  child:
-                      Text(_buzzerActive ? "Stop Beep 🔇" : "Find My Cane 🔔"),
-                ),
-            ],
+            ),
           ),
         ],
       ),
@@ -125,8 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: b.scanResults.length,
         itemBuilder: (context, i) {
           final r = b.scanResults[i];
-          final deviceName =
-              r.device.platformName ?? r.device.remoteId.str;
+          final deviceName = r.device.platformName ?? r.device.remoteId.str;
           return ListTile(
             title: Text(deviceName),
             subtitle: Text("ID: ${r.device.remoteId.str} | RSSI: ${r.rssi}"),
