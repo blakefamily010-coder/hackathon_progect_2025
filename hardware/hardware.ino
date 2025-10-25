@@ -4,15 +4,16 @@
 #include <BLE2902.h>
 #include <string>
 
-const int buzzer = 8;
-const int trig_pin0 = 9;
-const int echo_pin0 = 10;
-const int trig_pin1 = 5;
-const int echo_pin1 = 6;
-const int trig_pin2 = 7;
-const int echo_pin2 = 8;
+const int buzzer = 21;
+const int trig_pin0 = 13;
+const int echo_pin0 = 0;
+const int trig_pin1 = 16;
+const int echo_pin1 = 17;
+const int trig_pin2 = 5;
+const int echo_pin2 = 18;
 
 float read_dist(const int trig_pin, const int echo_pin) {
+    Serial.println("test0");
     digitalWrite(trig_pin, LOW);
     delay(2);
 
@@ -126,10 +127,11 @@ void setup() {
     digitalWrite(trig_pin2, LOW);
     digitalWrite(buzzer, LOW);
         
+    digitalWrite(buzzer, HIGH);
     Serial.begin(115200);
     // SerialBT.begin("ESP32test1");
-    Serial.println("The device started, now you can pair it with bluetooth!");
     initBLE();
+    Serial.println("The device started, now you can pair it with bluetooth!");
 }
 
 void loop() {
@@ -137,6 +139,7 @@ void loop() {
     float dist0 = read_dist(trig_pin0, echo_pin0);
     float dist1 = read_dist(trig_pin1, echo_pin1);
     float dist2 = read_dist(trig_pin2, echo_pin2);
+    Serial.println("test");
     // char buff[26];
     // sprintf(buff, "{\"distace0\":\"%f\",}\n", dist);
     // SerialBT.write( (uint8_t*) buff, 26);
@@ -144,7 +147,12 @@ void loop() {
     // Serial.write("\n\r");
     const float maximum = 255.0;
     uint8_t dist0_i = min(dist0, maximum);
-    uint8_t sensorData[3] = { dist0_i, 5, 10 };
+    uint8_t dist1_i = min(dist1, maximum);
+    uint8_t dist2_i = min(dist2, maximum);
+    uint8_t sensorData[3] = { dist0_i, dist1_i, dist2_i };
+    // Serial.println("dist0: %f", dist0);
+    // Serial.println("dist1: %f", dist1);
+    // Serial.println("dist2: %f", dist2);
 
     // Set the new value and notify the connected client
     pDistanceCharacteristic->setValue(sensorData, 3);
@@ -153,6 +161,7 @@ void loop() {
         Serial.println("\rbuzz up");
         digitalWrite(buzzer, HIGH);
     } else {
+        Serial.println("\rbuzz down");
         digitalWrite(buzzer, LOW);
     }
     // if (SerialBT.available()) {
@@ -171,7 +180,7 @@ void loop() {
     //     digitalWrite(buzzer, LOW);
     // }
     //
-    delay(2);
+    delay(200);
 }
 
 
