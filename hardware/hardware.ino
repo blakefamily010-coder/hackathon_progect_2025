@@ -13,7 +13,6 @@ const int trig_pin2 = 5;
 const int echo_pin2 = 18;
 
 float read_dist(const int trig_pin, const int echo_pin) {
-    Serial.println("test0");
     digitalWrite(trig_pin, LOW);
     delay(2);
 
@@ -24,6 +23,13 @@ float read_dist(const int trig_pin, const int echo_pin) {
     float timing = pulseIn(echo_pin, HIGH);
     float distance = (timing * 0.034) / 2;
     return distance;
+}
+void beep0() {
+    digitalWrite(buzzer, HIGH);
+}
+void beep1() {
+    digitalWrite(buzzer, HIGH);
+    delay(200);
 }
 
 // 1. UUID Definitions (Must match Flutter app's ble_service.dart)
@@ -127,19 +133,18 @@ void setup() {
     digitalWrite(trig_pin2, LOW);
     digitalWrite(buzzer, LOW);
         
-    digitalWrite(buzzer, HIGH);
     Serial.begin(115200);
     // SerialBT.begin("ESP32test1");
     initBLE();
     Serial.println("The device started, now you can pair it with bluetooth!");
 }
 
+bool toggle = false;
 void loop() {
     
     float dist0 = read_dist(trig_pin0, echo_pin0);
     float dist1 = read_dist(trig_pin1, echo_pin1);
     float dist2 = read_dist(trig_pin2, echo_pin2);
-    Serial.println("test");
     // char buff[26];
     // sprintf(buff, "{\"distace0\":\"%f\",}\n", dist);
     // SerialBT.write( (uint8_t*) buff, 26);
@@ -157,11 +162,17 @@ void loop() {
     // Set the new value and notify the connected client
     pDistanceCharacteristic->setValue(sensorData, 3);
     pDistanceCharacteristic->notify(); 
-    if ((dist0 <= 5.0) || (dist1 <= 5.0) || (dist2 <= 5.0)) {
-        Serial.println("\rbuzz up");
+    uint8_t v = pSettingsCharacteristic->getValue()[0];
+    if ((dist0 <= 20.0) || (dist1 <= 20.0) || (dist2 <= 20.0)) {
         digitalWrite(buzzer, HIGH);
+    } else if (v == 0xf0) {
+      digitalWrite(buzzer, HIGH);
+      Serial.println("test");
+    } else if (v == 0xf1) {
+      toggle = false;
+      digitalWrite(buzzer, LOW);
+      Serial.println("test0");
     } else {
-        Serial.println("\rbuzz down");
         digitalWrite(buzzer, LOW);
     }
     // if (SerialBT.available()) {
@@ -180,7 +191,7 @@ void loop() {
     //     digitalWrite(buzzer, LOW);
     // }
     //
-    delay(200);
+    delay(20);
 }
 
 
