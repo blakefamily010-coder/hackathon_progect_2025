@@ -1,6 +1,7 @@
 // ble_service.dart
 
 import 'dart:async';
+import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -214,6 +215,36 @@ class BleService extends ChangeNotifier {
       });
     }
   }
+
+Future<void> buzzerOn() async {
+  if (settingsChar != null) {
+    await settingsChar!.write([0xF0]); // Command: Start buzzer
+    print("📢 Buzzer ON command sent");
+  } else {
+    print("⚠️ No settings characteristic found");
+  }
+}
+
+Future<void> sendData(bool buzzer, int dangerCm) async {
+  dangerCm = dangerCm & 0x7F; // ensure 7-bit
+  int firstByte = (buzzer ? 0x80 : 0x00) | dangerCm;
+  List<int> data = [firstByte];
+  print("Bool: $buzzer");
+  print("dangerCM: $dangerCm");
+  print("Sending byte: $firstByte"); // shows decimal value
+  print("Binary: ${firstByte.toRadixString(2).padLeft(8, '0')}");
+
+  if (settingsChar != null) {
+    await settingsChar!.write(data);
+    print("Settings sent");
+  } else {
+    print("⚠️ No settings characteristic found");
+  }
+}
+
+
+
+
 
   void disposeService() {
     _deviceStateSub?.cancel();

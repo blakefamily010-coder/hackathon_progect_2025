@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'ble_service.dart';
 import 'dart:async';
@@ -15,6 +16,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int cautionCm = 120;
   int dangerCm = 50;
+
+  bool _buzzerActive = false;
 
   @override
   void dispose() {
@@ -53,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _connectionRow(BleService b) {
-    final deviceName = b.isConnected 
+    final deviceName = b.isConnected
         ? b.connectedDevice!.platformName ?? b.connectedDevice!.remoteId.str
         : "Not connected";
 
@@ -62,20 +65,14 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Connection Status Text
           Text(
-            b.isConnected
-                ? "$deviceName connected"
-                : "Not connected",
+            b.isConnected ? "$deviceName connected" : "Not connected",
             style: const TextStyle(fontSize: 16),
           ),
-          
-          // Buttons Row
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Hardcode Connect Button
-              if (!b.isConnected) 
+              if (!b.isConnected)
                 Padding(
                   padding: const EdgeInsets.only(right: 8.0),
                   child: ElevatedButton(
@@ -83,22 +80,30 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Text("Hardcode Connect"),
                   ),
                 ),
-
-              // Auto Connect/Disconnect Button
               ElevatedButton(
                 onPressed: b.isConnected
                     ? () => b.disconnect()
                     : () => b.scanAndAutoConnect(),
                 child: Text(b.isConnected ? "Disconnect" : "Auto Connect"),
               ),
-
               const SizedBox(width: 8),
-              
-              // Scan Button
               ElevatedButton(
                 onPressed: b.scanning ? b.stopScan : () => b.startScan(),
                 child: Text(b.scanning ? "Stop Scan" : "Scan"),
               ),
+              const SizedBox(width: 8),
+              if (b.isConnected)
+                ElevatedButton(
+                  onPressed: () async {
+                    await b.sendData(_buzzerActive, dangerCm);
+                    setState(() => _buzzerActive = !_buzzerActive);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _buzzerActive ? Colors.red : Colors.blue,
+                  ),
+                  child:
+                      Text(_buzzerActive ? "Stop Beep 🔇" : "Find My Cane 🔔"),
+                ),
             ],
           ),
         ],
@@ -122,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final deviceName =
               r.device.platformName ?? r.device.remoteId.str;
           return ListTile(
-            title: Text(deviceName), 
+            title: Text(deviceName),
             subtitle: Text("ID: ${r.device.remoteId.str} | RSSI: ${r.rssi}"),
             trailing: ElevatedButton(
               onPressed: () => b.connect(r.device),
@@ -140,17 +145,13 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // The Center Readout (now a circle)
-          _singleReadout("Center", b.centerCm), 
-          
-          // Removed the placeholder SizedBox, but kept the spacing between elements
-          const SizedBox(height: 24, ), 
-          
+          _singleReadout("Center", b.centerCm),
+          const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(child: _singleReadout("Left", b.leftCm)),
-              const SizedBox(width: 12), // Spacing between Left/Right circles
+              const SizedBox(width: 12),
               Expanded(child: _singleReadout("Right", b.rightCm)),
             ],
           ),
@@ -160,35 +161,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _singleReadout(String label, double? cm) {
-    // 1. Calculate the value to display: 
-    //    - If null OR > 250, display 'N/A'.
-    //    - Otherwise, display the value formatted to one decimal place.
-    //    - NOTE: The original code checked for '9999' which I've replaced with 250
-    //            and also added the null check for 'N/A'.
     final displayValue = (cm == null || cm > 250.0)
         ? 'N/A'
-        : cm.toStringAsFixed(1); // Use 1 decimal place as per previous request
+        : cm.toStringAsFixed(1);
 
-    // 2. Determine the color based on the sensor value (optional, but good visual feedback)
     Color circleColor;
     if (cm == null || cm > 250.0) {
-      circleColor = Colors.grey; // Not connected/out of range
+      circleColor = Colors.grey;
     } else if (cm <= dangerCm) {
-      circleColor = Colors.red.shade700; // Danger
+      circleColor = Colors.red.shade700;
     } else if (cm <= cautionCm) {
-      circleColor = Colors.orange.shade700; // Caution
+      circleColor = Colors.orange.shade700;
     } else {
-      circleColor = Colors.green.shade700; // Clear
+      circleColor = Colors.green.shade700;
     }
-    
-    // Define a size for the circular container
-    const double circleSize = 100.0; 
+
+    const double circleSize = 100.0;
 
     return Container(
-      width: circleSize, // Must be equal to height for a circle
+      width: circleSize,
       height: circleSize,
-      
-      // 🎨 Apply the Circle Decoration
       decoration: BoxDecoration(
         color: circleColor,
         shape: BoxShape.circle,
@@ -200,12 +192,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      
-      // Content is centered inside the circle
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // The Label (e.g., "Center")
           Text(
             label,
             style: const TextStyle(
@@ -213,21 +202,15 @@ class _HomeScreenState extends State<HomeScreen> {
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
-            textAlign: TextAlign.center,
           ),
-          
           const SizedBox(height: 4),
-          
-          // The Value (e.g., "150.0 cm" or "N/A")
           Text(
-            // Display the N/A or the formatted value with " cm" added
             displayValue == 'N/A' ? 'N/A' : '$displayValue cm',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -240,42 +223,87 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Settings"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: cautionCtl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Caution cm"),
-            ),
-            TextField(
-              controller: dangerCtl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Danger cm"),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: () {
-              int c = int.tryParse(cautionCtl.text) ?? cautionCm;
-              int d = int.tryParse(dangerCtl.text) ?? dangerCm;
-              
-              setState(() {
-                cautionCm = c;
-                dangerCm = d;
-              });
+      barrierDismissible: false,
+      builder: (_) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          // Track validity
+          bool dangerValid = true;
+          bool cautionValid = true;
 
-              b.writeSettings(c, d); 
-              Navigator.pop(context);
-            },
-            child: const Text("Save"),
-          )
-        ],
-      ),
+          int? dangerVal = int.tryParse(dangerCtl.text);
+          int? cautionVal = int.tryParse(cautionCtl.text);
+
+          if (dangerVal == null || dangerVal < 1 || dangerVal > 127) {
+            dangerValid = false;
+          }
+
+          if (cautionVal == null || dangerVal == null || cautionVal <= dangerVal) {
+            cautionValid = false;
+          }
+
+          bool formValid = dangerValid && cautionValid;
+
+          return AlertDialog(
+            title: const Text("Settings"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: dangerCtl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    labelText: "Danger cm (1–127)",
+                    errorText: dangerValid ? null : "Must be 1–127",
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: dangerValid ? Colors.grey : Colors.red,
+                      ),
+                    ),
+                  ),
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: cautionCtl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    labelText: "Caution cm (> Danger)",
+                    errorText: cautionValid ? null : "Must be > Danger",
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: cautionValid ? Colors.grey : Colors.red,
+                      ),
+                    ),
+                  ),
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: formValid
+                    ? () {
+                        setState(() {
+                          cautionCm = cautionVal!;
+                          dangerCm = dangerVal!;
+                        });
+                        b.writeSettings(cautionCm, dangerCm);
+                        b.sendData(_buzzerActive, dangerCm);
+                        Navigator.pop(context);
+                      }
+                    : null,
+                child: const Text("Save"),
+              ),
+            ],
+          );
+        });
+      },
     );
   }
 }
