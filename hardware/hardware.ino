@@ -1,12 +1,12 @@
 #include "BluetoothSerial.h"
 
 const int buzzer = 8;
-const int trig_pin = 9;
-const int echo_pin = 10;
+const int trig_pin0 = 9;
+const int echo_pin0 = 10;
 
 BluetoothSerial SerialBT;
 
-float read_dist() {
+float read_dist(const int trig_pin, const int echo_pin) {
     digitalWrite(trig_pin, LOW);
     delay(2);
 
