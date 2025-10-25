@@ -5,6 +5,7 @@
 #include <string>
 
 const int buzzer = 21;
+const int button = 35;
 const int trig_pin0 = 13;
 const int echo_pin0 = 0;
 const int trig_pin1 = 16;
@@ -123,6 +124,7 @@ void setup() {
     pinMode(echo_pin0, INPUT);
     pinMode(echo_pin1, INPUT);
     pinMode(echo_pin2, INPUT);
+    pinMode(button, INPUT);
     pinMode(trig_pin0, OUTPUT);
     pinMode(trig_pin1, OUTPUT);
     pinMode(trig_pin2, OUTPUT);
@@ -141,7 +143,17 @@ void setup() {
 
 bool toggle = false;
 uint8_t error = 20.0;
+bool button_toggle = false;
+bool button_last = false;
 void loop() {
+    bool button_pressed = digitalRead(button);
+    if button_pressed && !button_last {
+        toggle = !toggle;
+    }
+    button_last = button_pressed;
+    if toggle {
+        return;
+    }
     
     float dist0 = read_dist(trig_pin0, echo_pin0);
     float dist1 = read_dist(trig_pin1, echo_pin1);
