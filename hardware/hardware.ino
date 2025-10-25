@@ -4,22 +4,25 @@
 #include <BLE2902.h>
 #include <string>
 
-// Pin constants
-const int buzzer = 16;
-const int trig_pin = 17;
-const int echo_pin = 5;
+const int buzzer = 8;
+const int trig_pin0 = 9;
+const int echo_pin0 = 10;
+const int trig_pin1 = 5;
+const int echo_pin1 = 6;
+const int trig_pin2 = 7;
+const int echo_pin2 = 8;
 
-float read_dist() {
-  digitalWrite(trig_pin, LOW);
-  delay(2);
+float read_dist(const int trig_pin, const int echo_pin) {
+    digitalWrite(trig_pin, LOW);
+    delay(2);
 
-  digitalWrite(trig_pin, HIGH);
-  delay(10);
-  digitalWrite(trig_pin, LOW);
+    digitalWrite(trig_pin, HIGH);
+    delay(10);
+    digitalWrite(trig_pin, LOW);
 
-  float timing = pulseIn(echo_pin, HIGH);
-  float distance = (timing * 0.034) / 2;
-  return distance;
+    float timing = pulseIn(echo_pin, HIGH);
+    float distance = (timing * 0.034) / 2;
+    return distance;
 }
 
 // 1. UUID Definitions (Must match Flutter app's ble_service.dart)
@@ -110,12 +113,18 @@ void initBLE() {
 
 
 void setup() {
-    pinMode(echo_pin, INPUT);
-    pinMode(trig_pin, OUTPUT);
+    pinMode(echo_pin0, INPUT);
+    pinMode(echo_pin1, INPUT);
+    pinMode(echo_pin2, INPUT);
+    pinMode(trig_pin0, OUTPUT);
+    pinMode(trig_pin1, OUTPUT);
+    pinMode(trig_pin2, OUTPUT);
     pinMode(buzzer, OUTPUT);
-    //
-    // digitalWrite(trig_pin, LOW);
-    // digitalWrite(buzzer, LOW);
+
+    digitalWrite(trig_pin0, LOW);
+    digitalWrite(trig_pin1, LOW);
+    digitalWrite(trig_pin2, LOW);
+    digitalWrite(buzzer, LOW);
         
     Serial.begin(115200);
     // SerialBT.begin("ESP32test1");
@@ -125,20 +134,22 @@ void setup() {
 
 void loop() {
     
-    float dist = read_dist();
+    float dist0 = read_dist(trig_pin0, echo_pin0);
+    float dist1 = read_dist(trig_pin1, echo_pin1);
+    float dist2 = read_dist(trig_pin2, echo_pin2);
     // char buff[26];
     // sprintf(buff, "{\"distace0\":\"%f\",}\n", dist);
     // SerialBT.write( (uint8_t*) buff, 26);
     // Serial.write( (uint8_t*) buff, 26);
     // Serial.write("\n\r");
     const float maximum = 255.0;
-    uint8_t dist0_i = min(dist, maximum);
+    uint8_t dist0_i = min(dist0, maximum);
     uint8_t sensorData[3] = { dist0_i, 5, 10 };
 
     // Set the new value and notify the connected client
     pDistanceCharacteristic->setValue(sensorData, 3);
     pDistanceCharacteristic->notify(); 
-    if (dist <= 5.0) {
+    if ((dist0 <= 5.0) || (dist1 <= 5.0) || (dist2 <= 5.0)) {
         Serial.println("\rbuzz up");
         digitalWrite(buzzer, HIGH);
     } else {
