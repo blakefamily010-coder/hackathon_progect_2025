@@ -148,16 +148,19 @@ bool button_last = false;
 void loop() {
     // active low button
     bool button_pressed = !digitalRead(button);
-    if (button_pressed) {
-      Serial.println("pressed");
+    if (!button_pressed) {
+      Serial.println("!pressed");
     }
     if (button_pressed && !button_last) {
         toggle = !toggle;
         Serial.println("toggle");
     }
+    // Serial.println("button_toggle: %d", button_toggle, 24);
+    // Serial.println("button_last: %d", button_last, 24);
     button_last = button_pressed;
     if (!toggle) {
         // Serial.println("skip");
+        delay(200);
         return;
     }
     
@@ -211,7 +214,7 @@ void loop() {
     //     digitalWrite(buzzer, LOW);
     // }
     //
-    delay(20);
+    delay(200);
 }
 
 
