@@ -192,17 +192,76 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _singleReadout(String label, double? cm) {
-    final display = (cm == null || cm >= 9999) ? "--" : "${cm.toStringAsFixed(0)} cm";
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18.0),
-        child: Column(
-          children: [
-            Text(label, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Text(display, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-          ],
-        ),
+    // 1. Calculate the value to display: 
+    //    - If null OR > 250, display 'N/A'.
+    //    - Otherwise, display the value formatted to one decimal place.
+    //    - NOTE: The original code checked for '9999' which I've replaced with 250
+    //            and also added the null check for 'N/A'.
+    final displayValue = (cm == null || cm > 250.0)
+        ? 'N/A'
+        : cm.toStringAsFixed(1); // Use 1 decimal place as per previous request
+
+    // 2. Determine the color based on the sensor value (optional, but good visual feedback)
+    Color circleColor;
+    if (cm == null || cm > 250.0) {
+      circleColor = Colors.grey; // Not connected/out of range
+    } else if (cm <= dangerCm) {
+      circleColor = Colors.red.shade700; // Danger
+    } else if (cm <= cautionCm) {
+      circleColor = Colors.orange.shade700; // Caution
+    } else {
+      circleColor = Colors.green.shade700; // Clear
+    }
+    
+    // Define a size for the circular container
+    const double circleSize = 100.0; 
+
+    return Container(
+      width: circleSize, // Must be equal to height for a circle
+      height: circleSize,
+      
+      // 🎨 Apply the Circle Decoration
+      decoration: BoxDecoration(
+        color: circleColor,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: circleColor.withOpacity(0.4),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      
+      // Content is centered inside the circle
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // The Label (e.g., "Center")
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 4),
+          
+          // The Value (e.g., "150.0 cm" or "N/A")
+          Text(
+            // Display the N/A or the formatted value with " cm" added
+            displayValue == 'N/A' ? 'N/A' : '$displayValue cm',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

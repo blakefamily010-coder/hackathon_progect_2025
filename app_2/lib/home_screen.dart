@@ -1,8 +1,6 @@
-// lib/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'ble_service.dart';
-import 'package:vibration/vibration.dart';
 import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
@@ -24,44 +22,10 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _maybeTriggerHaptics(BleService b) async {
-    _hapticTimer?.cancel();
-
-    final left = b.leftCm;
-    final center = b.centerCm;
-    final right = b.rightCm;
-
-    if (left == null || center == null || right == null) return;
-
-    bool danger = (center <= dangerCm) || (left <= dangerCm) || (right <= dangerCm);
-    bool caution = (center <= cautionCm) || (left <= cautionCm) || (right <= cautionCm);
-
-    if (danger) {
-      _hapticTimer = Timer.periodic(const Duration(milliseconds: 400), (_) async {
-        // Safe check for nullable result from Future<bool?>
-        if (await Vibration.hasVibrator() == true) Vibration.vibrate(duration: 250);
-      });
-    } else if (caution) {
-      _hapticTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-        // Safe check for nullable result from Future<bool?>
-        if (await Vibration.hasCustomVibrationsSupport() == true) {
-          Vibration.vibrate(pattern: <int>[0, 100, 150, 100]);
-        } else {
-          Vibration.vibrate(duration: 80);
-        }
-      });
-    } else {
-      _hapticTimer?.cancel();
-      _hapticTimer = null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<BleService>(
       builder: (context, b, _) {
-        _maybeTriggerHaptics(b);
-
         return Scaffold(
           appBar: AppBar(
             title: const Text('Smart Cane'),
@@ -89,7 +53,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _connectionRow(BleService b) {
-    // FIX: Simplified the expression. Since b.isConnected is true, b.connectedDevice is not null. 
     final deviceName = b.isConnected 
         ? b.connectedDevice!.platformName ?? b.connectedDevice!.remoteId.str
         : "Not connected";
@@ -97,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween, // Adjust alignment for more buttons
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Connection Status Text
           Text(
@@ -107,11 +70,11 @@ class _HomeScreenState extends State<HomeScreen> {
             style: const TextStyle(fontSize: 16),
           ),
           
-          // Use a Row for the buttons to keep them together
+          // Buttons Row
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 💡 NEW BUTTON: Hardcode Connect
+              // Hardcode Connect Button
               if (!b.isConnected) 
                 Padding(
                   padding: const EdgeInsets.only(right: 8.0),
@@ -156,12 +119,10 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: b.scanResults.length,
         itemBuilder: (context, i) {
           final r = b.scanResults[i];
-          // Code is already correct, as r.device.remoteId.str is non-nullable String.
           final deviceName =
               r.device.platformName ?? r.device.remoteId.str;
           return ListTile(
             title: Text(deviceName), 
-            // Subtitle updated to show ID and RSSI for clarity
             subtitle: Text("ID: ${r.device.remoteId.str} | RSSI: ${r.rssi}"),
             trailing: ElevatedButton(
               onPressed: () => b.connect(r.device),
@@ -179,13 +140,17 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _singleReadout("Center", b.centerCm),
-          const SizedBox(height: 12),
+          // The Center Readout (now a circle)
+          _singleReadout("Center", b.centerCm), 
+          
+          // Removed the placeholder SizedBox, but kept the spacing between elements
+          const SizedBox(height: 24, ), 
+          
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(child: _singleReadout("Left", b.leftCm)),
-              const SizedBox(width: 12),
+              const SizedBox(width: 12), // Spacing between Left/Right circles
               Expanded(child: _singleReadout("Right", b.rightCm)),
             ],
           ),
@@ -195,17 +160,76 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _singleReadout(String label, double? cm) {
-    final display = (cm == null || cm >= 9999) ? "--" : "${cm.toStringAsFixed(0)} cm";
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18.0),
-        child: Column(
-          children: [
-            Text(label, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Text(display, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-          ],
-        ),
+    // 1. Calculate the value to display: 
+    //    - If null OR > 250, display 'N/A'.
+    //    - Otherwise, display the value formatted to one decimal place.
+    //    - NOTE: The original code checked for '9999' which I've replaced with 250
+    //            and also added the null check for 'N/A'.
+    final displayValue = (cm == null || cm > 250.0)
+        ? 'N/A'
+        : cm.toStringAsFixed(1); // Use 1 decimal place as per previous request
+
+    // 2. Determine the color based on the sensor value (optional, but good visual feedback)
+    Color circleColor;
+    if (cm == null || cm > 250.0) {
+      circleColor = Colors.grey; // Not connected/out of range
+    } else if (cm <= dangerCm) {
+      circleColor = Colors.red.shade700; // Danger
+    } else if (cm <= cautionCm) {
+      circleColor = Colors.orange.shade700; // Caution
+    } else {
+      circleColor = Colors.green.shade700; // Clear
+    }
+    
+    // Define a size for the circular container
+    const double circleSize = 100.0; 
+
+    return Container(
+      width: circleSize, // Must be equal to height for a circle
+      height: circleSize,
+      
+      // 🎨 Apply the Circle Decoration
+      decoration: BoxDecoration(
+        color: circleColor,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: circleColor.withOpacity(0.4),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      
+      // Content is centered inside the circle
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // The Label (e.g., "Center")
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 4),
+          
+          // The Value (e.g., "150.0 cm" or "N/A")
+          Text(
+            // Display the N/A or the formatted value with " cm" added
+            displayValue == 'N/A' ? 'N/A' : '$displayValue cm',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
