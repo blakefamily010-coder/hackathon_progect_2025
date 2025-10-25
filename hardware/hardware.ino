@@ -4,13 +4,13 @@
 #include <BLE2902.h>
 #include <string>
 
-const int buzzer = 8;
-const int trig_pin0 = 9;
-const int echo_pin0 = 10;
-const int trig_pin1 = 5;
-const int echo_pin1 = 6;
-const int trig_pin2 = 7;
-const int echo_pin2 = 8;
+const int buzzer = 2;
+const int trig_pin0 = 15;
+const int echo_pin0 = 0;
+const int trig_pin1 = 16;
+const int echo_pin1 = 17;
+const int trig_pin2 = 5;
+const int echo_pin2 = 18;
 
 float read_dist(const int trig_pin, const int echo_pin) {
     digitalWrite(trig_pin, LOW);
@@ -144,7 +144,12 @@ void loop() {
     // Serial.write("\n\r");
     const float maximum = 255.0;
     uint8_t dist0_i = min(dist0, maximum);
-    uint8_t sensorData[3] = { dist0_i, 5, 10 };
+    uint8_t dist1_i = min(dist1, maximum);
+    uint8_t dist2_i = min(dist2, maximum);
+    uint8_t sensorData[3] = { dist0_i, dist1_i, dist2_i };
+    // Serial.println("dist0: %f", dist0);
+    // Serial.println("dist1: %f", dist1);
+    // Serial.println("dist2: %f", dist2);
 
     // Set the new value and notify the connected client
     pDistanceCharacteristic->setValue(sensorData, 3);
@@ -153,6 +158,7 @@ void loop() {
         Serial.println("\rbuzz up");
         digitalWrite(buzzer, HIGH);
     } else {
+        Serial.println("\rbuzz down");
         digitalWrite(buzzer, LOW);
     }
     // if (SerialBT.available()) {
