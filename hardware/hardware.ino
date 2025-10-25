@@ -4,8 +4,8 @@
 #include <BLE2902.h>
 #include <string>
 
-const int buzzer = 2;
-const int trig_pin0 = 15;
+const int buzzer = 21;
+const int trig_pin0 = 13;
 const int echo_pin0 = 0;
 const int trig_pin1 = 16;
 const int echo_pin1 = 17;
@@ -13,6 +13,7 @@ const int trig_pin2 = 5;
 const int echo_pin2 = 18;
 
 float read_dist(const int trig_pin, const int echo_pin) {
+    Serial.println("test0");
     digitalWrite(trig_pin, LOW);
     delay(2);
 
@@ -126,10 +127,11 @@ void setup() {
     digitalWrite(trig_pin2, LOW);
     digitalWrite(buzzer, LOW);
         
+    digitalWrite(buzzer, HIGH);
     Serial.begin(115200);
     // SerialBT.begin("ESP32test1");
-    Serial.println("The device started, now you can pair it with bluetooth!");
     initBLE();
+    Serial.println("The device started, now you can pair it with bluetooth!");
 }
 
 void loop() {
@@ -137,6 +139,7 @@ void loop() {
     float dist0 = read_dist(trig_pin0, echo_pin0);
     float dist1 = read_dist(trig_pin1, echo_pin1);
     float dist2 = read_dist(trig_pin2, echo_pin2);
+    Serial.println("test");
     // char buff[26];
     // sprintf(buff, "{\"distace0\":\"%f\",}\n", dist);
     // SerialBT.write( (uint8_t*) buff, 26);
@@ -177,7 +180,7 @@ void loop() {
     //     digitalWrite(buzzer, LOW);
     // }
     //
-    delay(2);
+    delay(200);
 }
 
 
