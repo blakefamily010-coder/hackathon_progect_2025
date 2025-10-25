@@ -140,6 +140,7 @@ void setup() {
 }
 
 bool toggle = false;
+uint8_t error = 20.0;
 void loop() {
     
     float dist0 = read_dist(trig_pin0, echo_pin0);
@@ -163,12 +164,15 @@ void loop() {
     pDistanceCharacteristic->setValue(sensorData, 3);
     pDistanceCharacteristic->notify(); 
     uint8_t v = pSettingsCharacteristic->getValue()[0];
-    if ((dist0 <= 20.0) || (dist1 <= 20.0) || (dist2 <= 20.0)) {
+    if (v != 0) {
+        error = v && 0x7f;
+    }
+    if ((dist0 <= error) || (dist1 <= error) || (dist2 <= error)) {
         digitalWrite(buzzer, HIGH);
-    } else if (v == 0xf0) {
+    } else if ((v && 0x80) == 0x80) {
       digitalWrite(buzzer, HIGH);
       Serial.println("test");
-    } else if (v == 0xf1) {
+    } else if ((v && 0x80) == 0x00) {
       toggle = false;
       digitalWrite(buzzer, LOW);
       Serial.println("test0");
