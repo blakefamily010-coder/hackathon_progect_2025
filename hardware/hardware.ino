@@ -124,7 +124,7 @@ void setup() {
     pinMode(echo_pin0, INPUT);
     pinMode(echo_pin1, INPUT);
     pinMode(echo_pin2, INPUT);
-    pinMode(button, INPUT);
+    pinMode(button, INPUT_PULLUP);
     pinMode(trig_pin0, OUTPUT);
     pinMode(trig_pin1, OUTPUT);
     pinMode(trig_pin2, OUTPUT);
@@ -146,7 +146,8 @@ uint8_t error = 20.0;
 bool button_toggle = true;
 bool button_last = false;
 void loop() {
-    bool button_pressed = digitalRead(button);
+    // active low button
+    bool button_pressed = !digitalRead(button);
     if (button_pressed) {
       Serial.println("pressed");
     }
