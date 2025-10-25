@@ -143,15 +143,20 @@ void setup() {
 
 bool toggle = false;
 uint8_t error = 20.0;
-bool button_toggle = false;
+bool button_toggle = true;
 bool button_last = false;
 void loop() {
     bool button_pressed = digitalRead(button);
-    if button_pressed && !button_last {
+    if (button_pressed) {
+      Serial.println("pressed");
+    }
+    if (button_pressed && !button_last) {
         toggle = !toggle;
+        Serial.println("toggle");
     }
     button_last = button_pressed;
-    if toggle {
+    if (!toggle) {
+        // Serial.println("skip");
         return;
     }
     
@@ -183,11 +188,9 @@ void loop() {
         digitalWrite(buzzer, HIGH);
     } else if ((v && 0x80) == 0x80) {
       digitalWrite(buzzer, HIGH);
-      Serial.println("test");
     } else if ((v && 0x80) == 0x00) {
       toggle = false;
       digitalWrite(buzzer, LOW);
-      Serial.println("test0");
     } else {
         digitalWrite(buzzer, LOW);
     }
