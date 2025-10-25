@@ -127,15 +127,15 @@ bool toggle = false;
 uint8_t error = 20.0;
 bool button_toggle = true;
 
-// ✅ Debounce variables
+// Debounce variables
 static unsigned long lastDebounceTime = 0;
-static const unsigned long debounceDelay = 50;
+static const unsigned long debounceDelay = 100;
 static bool lastSteadyState = HIGH;
 static bool lastReading = HIGH;
 
 void loop() {
 
-    // ✅ Debounced Button Logic
+    // Debounced Button Logic
     bool currentReading = digitalRead(button);
     if (currentReading != lastReading) {
         lastDebounceTime = millis();
