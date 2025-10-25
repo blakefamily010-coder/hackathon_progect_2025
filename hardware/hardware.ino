@@ -1,8 +1,8 @@
 #include "BluetoothSerial.h"
 
-const int buzzer = 2;
-const int trig_pin = 0;
-const int echo_pin = 4;
+const int buzzer = 16;
+const int trig_pin = 17;
+const int echo_pin = 5;
 
 BluetoothSerial SerialBT;
 
@@ -20,9 +20,9 @@ float read_dist() {
 }
 
 void setup() {
-    // pinMode(echo_pin, INPUT);
-    // pinMode(trig_pin, OUTPUT);
-    // pinMode(buzzer, OUTPUT);
+    pinMode(echo_pin, INPUT);
+    pinMode(trig_pin, OUTPUT);
+    pinMode(buzzer, OUTPUT);
     //
     // digitalWrite(trig_pin, LOW);
     // digitalWrite(buzzer, LOW);
@@ -36,17 +36,19 @@ void loop() {
     
     float dist = read_dist();
     char buff[26];
-    sprintf(buff, "{\"distace0\":\"%f\",}", dist);
+    sprintf(buff, "{\"distace0\":\"%f\",}\n", dist);
     SerialBT.write( (uint8_t*) buff, 26);
     Serial.write( (uint8_t*) buff, 26);
+    // Serial.write("\n\r");
     if (dist <= 5.0) {
+        Serial.println("\rbuzz up");
         digitalWrite(buzzer, HIGH);
     } else {
         digitalWrite(buzzer, LOW);
     }
-    if (SerialBT.available()) {
-      Serial.write(SerialBT.read());
-    }
+    // if (SerialBT.available()) {
+    //   Serial.write(SerialBT.read());
+    // }
     
     // Serial.print("Distance: ");
     // Serial.print(distance);
@@ -60,7 +62,7 @@ void loop() {
     //     digitalWrite(buzzer, LOW);
     // }
     //
-    delay(20);
+    delay(2);
 }
 
 
