@@ -3,6 +3,10 @@
 const int buzzer = 8;
 const int trig_pin0 = 9;
 const int echo_pin0 = 10;
+const int trig_pin1 = 5;
+const int echo_pin1 = 6;
+const int trig_pin2 = 7;
+const int echo_pin2 = 8;
 
 BluetoothSerial SerialBT;
 
@@ -34,12 +38,14 @@ void setup() {
 
 void loop() {
     
-    float dist = read_dist();
-    char buff[24];
-    sprintf(buff, "{\"distace0\":\"%f\",}", dist);
-    SerialBT.write( (uint8_t*) buff, 24);
-    Serial.write( (uint8_t*) buff, 24);
-    if (dist <= 5.0) {
+    float dist0 = read_dist(trig_pin0, echo_pin0);
+    float dist1 = read_dist(trig_pin1, echo_pin1);
+    float dist2 = read_dist(trig_pin2, echo_pin2);
+    char buff[72];
+    sprintf(buff, "{\"distace0\":\"%f\",\"distance1\":\"%f\",\"distance2\":\"%f\"}", dist0, dist1, dist2);
+    SerialBT.write( (uint8_t*) buff, 72);
+    Serial.write( (uint8_t*) buff, 72);
+    if (((dist0 <= 5.0) || (dist1 <= 5.0)) || (dist1 <= 5.0)) {
         digitalWrite(buzzer, HIGH);
     } else {
         digitalWrite(buzzer, LOW);
