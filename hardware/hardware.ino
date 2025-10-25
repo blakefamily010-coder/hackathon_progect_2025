@@ -153,11 +153,16 @@ void loop() {
     // }
     if (button_pressed && !button_last) {
         button_toggle = !button_toggle;
+        digitalWrite(buzzer, LOW);
     }
     // Serial.println("button_toggle: %d", button_toggle, 24);
     // Serial.println("button_last: %d", button_last, 24);
     button_last = button_pressed;
     if (!button_toggle) {
+        uint8_t v = pSettingsCharacteristic->getValue()[0];
+        if ((v && 0x80) == 0x80) {
+            digitalWrite(buzzer, HIGH);
+        }
         delay(2);
         return;
     }
@@ -190,10 +195,10 @@ void loop() {
     if ((dist0 <= error) || (dist1 <= error) || (dist2 <= error)) {
         digitalWrite(buzzer, HIGH);
     } else if ((v && 0x80) == 0x80) {
-      digitalWrite(buzzer, HIGH);
+        digitalWrite(buzzer, HIGH);
     } else if ((v && 0x80) == 0x00) {
-      toggle = false;
-      digitalWrite(buzzer, LOW);
+        toggle = false;
+        digitalWrite(buzzer, LOW);
     } else {
         digitalWrite(buzzer, LOW);
     }
