@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'ble_service.dart';
 import 'package:vibration/vibration.dart';
 import 'dart:async';
+// ADDED for device type in the list tile
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,10 +33,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final center = b.centerCm;
     final right = b.rightCm;
 
-    if (left == null || center == null || right == null) return;
-
-    bool danger = (center <= dangerCm) || (left <= dangerCm) || (right <= dangerCm);
-    bool caution = (center <= cautionCm) || (left <= cautionCm) || (right <= cautionCm);
+    // The ESP32 only sends a single sensor's data (centerCm), so we only check 'center'
+    // We can comment out the full check if it's only a single sensor project
+    // if (left == null || center == null || right == null) return;
+    if (center == null) return; // Only check the sensor that is actually sending data
+    
+    // For single sensor, we only check the center distance
+    bool danger = (center <= dangerCm);
+    bool caution = (center <= cautionCm);
 
     if (danger) {
       _hapticTimer = Timer.periodic(const Duration(milliseconds: 400), (_) async {
@@ -77,7 +83,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               _connectionRow(b),
               const Divider(),
-              _scanList(b),
+              // ⚠️ NEW: Changed to _pairedDeviceList for BT Classic
+              _pairedDeviceList(b),
               const Divider(),
               Expanded(child: _readouts(b)),
               const SizedBox(height: 12),
@@ -95,7 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text(
             b.isConnected
-                ? "${b.connectedDevice?.platformName ?? b.connectedDevice?.remoteId ?? 'Device'} connected"
+                // ⚠️ FIX: Use the connectedDevice property from BleService
+                ? "${b.connectedDevice?.name ?? b.connectedDevice?.address ?? 'Device'} connected"
                 : "Not connected",
             style: const TextStyle(fontSize: 16),
           ),
@@ -103,42 +111,55 @@ class _HomeScreenState extends State<HomeScreen> {
           ElevatedButton(
             onPressed: b.isConnected
                 ? () => b.disconnect()
-                : () => b.scanAndAutoConnect(),
+                // ⚠️ FIX: Call auto-connect which also performs the check for paired devices
+                : () => b.scanAndAutoConnect(), 
             child: Text(b.isConnected ? "Disconnect" : "Auto Connect"),
           ),
           const SizedBox(width: 8),
+          // ⚠️ FIX: Removed the 'Scan' button as the auto-connect function 
+          // now handles listing paired devices, which is the standard BT Classic approach.
+          // You could replace this with a button to simply load bonded devices if needed.
           ElevatedButton(
-            onPressed: b.scanning ? b.stopScan : () => b.startScan(),
-            child: Text(b.scanning ? "Stop Scan" : "Scan"),
+            // Since BT Classic primarily uses BONDED devices, a simple 'Refresh' of the list is often enough.
+            onPressed: () => b.scanAndAutoConnect(), 
+            child: const Text("Load Paired"),
           ),
         ],
       ),
     );
   }
 
-  Widget _scanList(BleService b) {
-    if (b.scanning) {
-      return const Padding(
+  // ⚠️ NEW: Widget to display Paired Devices for Bluetooth Classic
+  Widget _pairedDeviceList(BleService b) {
+    // If connected, show nothing in the list.
+    if (b.isConnected) {
+      return const SizedBox(height: 0);
+    }
+    
+    // Show a message if no devices were loaded or found.
+    if (b.pairedDevices.isEmpty) {
+       return const Padding(
         padding: EdgeInsets.all(8.0),
-        child: Text('Scanning...'),
+        child: Text('No paired devices found. Ensure the ESP32 is paired via OS settings.'),
       );
     }
+
     return SizedBox(
       height: 120,
       child: ListView.builder(
-        itemCount: b.scanResults.length,
+        itemCount: b.pairedDevices.length,
         itemBuilder: (context, i) {
-          final r = b.scanResults[i];
-          // FIX: Simplified the expression to remove dead code warnings. 
-          // r.device.remoteId.str is a non-nullable String, making the final ?? "Unknown Device" redundant.
-          final deviceName =
-              r.device.platformName ?? r.device.remoteId.str;
+          // ⚠️ FIX: Use the BluetoothDevice type directly from the imported library
+          final BluetoothDevice device = b.pairedDevices[i]; 
+          
+          final deviceName = device.name ?? 'Unknown Device';
+
           return ListTile(
-            // Ensure the value is dihsplayed as a string
-            title: Text(deviceName.toString()),
-            subtitle: Text("RSSI: ${r.rssi}"),
+            title: Text(deviceName),
+            subtitle: Text(device.address),
             trailing: ElevatedButton(
-              onPressed: () => b.connect(r.device),
+              // ⚠️ FIX: Pass the BluetoothDevice object to connect
+              onPressed: () => b.connect(device), 
               child: const Text('Connect'),
             ),
           );
@@ -155,6 +176,8 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _singleReadout("Center", b.centerCm),
           const SizedBox(height: 12),
+          // The hardware only supports one sensor, so left and right will be null/0.
+          // Keep the UI layout for future expansion.
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
