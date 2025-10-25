@@ -35,10 +35,10 @@ void setup() {
 void loop() {
     
     float dist = read_dist();
-    char buff[24];
+    char buff[26];
     sprintf(buff, "{\"distace0\":\"%f\",}", dist);
-    SerialBT.write( (uint8_t*) buff, 24);
-    Serial.write( (uint8_t*) buff, 24);
+    SerialBT.write( (uint8_t*) buff, 26);
+    Serial.write( (uint8_t*) buff, 26);
     if (dist <= 5.0) {
         digitalWrite(buzzer, HIGH);
     } else {
