@@ -147,20 +147,18 @@ bool button_toggle = true;
 bool button_last = false;
 void loop() {
     // active low button
-    bool button_pressed = !digitalRead(button);
-    if (!button_pressed) {
-      Serial.println("!pressed");
-    }
+    bool button_pressed = digitalRead(button);
+    // if (!button_pressed) {
+      // Serial.println("!pressed");
+    // }
     if (button_pressed && !button_last) {
-        toggle = !toggle;
-        Serial.println("toggle");
+        button_toggle = !button_toggle;
     }
     // Serial.println("button_toggle: %d", button_toggle, 24);
     // Serial.println("button_last: %d", button_last, 24);
     button_last = button_pressed;
-    if (!toggle) {
-        // Serial.println("skip");
-        delay(200);
+    if (!button_toggle) {
+        delay(2);
         return;
     }
     
@@ -185,6 +183,7 @@ void loop() {
     pDistanceCharacteristic->setValue(sensorData, 3);
     pDistanceCharacteristic->notify(); 
     uint8_t v = pSettingsCharacteristic->getValue()[0];
+    // uint8_t v = 0x14;
     if (v != 0) {
         error = v && 0x7f;
     }
@@ -214,7 +213,7 @@ void loop() {
     //     digitalWrite(buzzer, LOW);
     // }
     //
-    delay(200);
+    delay(2);
 }
 
 
